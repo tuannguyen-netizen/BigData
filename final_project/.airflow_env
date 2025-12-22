@@ -1,0 +1,7 @@
+# Airflow Environment Variables
+export AIRFLOW_HOME=/home/haminhchien/Documents/bigdata/final_project
+export AIRFLOW_CONFIG=/home/haminhchien/Documents/bigdata/final_project/config/airflow.cfg
+export AIRFLOW__CORE__DAGS_FOLDER=/home/haminhchien/Documents/bigdata/final_project/dags
+export AIRFLOW__CORE__PLUGINS_FOLDER=/home/haminhchien/Documents/bigdata/final_project/plugins
+export AIRFLOW__LOGGING__BASE_LOG_FOLDER=/home/haminhchien/Documents/bigdata/final_project/logs
+export PYTHONPATH=/home/haminhchien/Documents/bigdata/final_project:$PYTHONPATH
