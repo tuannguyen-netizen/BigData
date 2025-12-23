@@ -1,3 +1,0 @@
-nohup: ignoring input
-error: Failed to spawn: `celery`
-  Caused by: No such file or directory (os error 2)

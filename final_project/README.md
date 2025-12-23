@@ -13,9 +13,10 @@ Dự án này triển khai một pipeline học máy end-to-end sử dụng Spar
 👉 **Xem [QUICK_START.md](QUICK_START.md) để bắt đầu nhanh**
 
 Hoặc xem hướng dẫn chi tiết:
-- **[SETUP_GUIDE.md](SETUP_GUIDE.md)**: Hướng dẫn setup từng bước với hostname
-- **[README_HADOOP_RABBITMQ.md](README_HADOOP_RABBITMQ.md)**: Tổng quan hệ thống phân tán
-- **[RABBITMQ_CONFIG.md](RABBITMQ_CONFIG.md)**: Cấu hình RabbitMQ chi tiết
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**: Kiến trúc hệ thống phân tán
+- **[docs/BAO_CAO_CHI_TIET.md](docs/BAO_CAO_CHI_TIET.md)**: Báo cáo chi tiết dự án
+- **[docs/TEST_STREAMING.md](docs/TEST_STREAMING.md)**: Hướng dẫn test streaming
+- **[docs/archived/](docs/archived/)**: Tài liệu lưu trữ (setup guides, troubleshooting)
 
 ## 📋 Yêu cầu hệ thống
 
@@ -74,21 +75,63 @@ airflow users create \
 
 ```
 final_project/
-├── dags/
-│   └── ml_pipeline_dag.py          # Airflow DAG điều khiển toàn bộ
-├── data/
-│   └── prepare_data.py              # Chia dữ liệu train/streaming
-├── docker/
-│   └── docker-compose.yml          # Kafka + Zookeeper
-├── spark_jobs/
-│   ├── train_model.py               # Huấn luyện mô hình Spark ML
-│   └── streaming_predict.py        # Spark Streaming dự đoán
-├── streaming/
-│   └── kafka_producer.py            # Mô phỏng streaming vào Kafka
-├── visualization/
-│   └── kafka_consumer.py            # Trực quan hóa kết quả
-├── requirements.txt                 # Python dependencies
-└── README.md                        # File này
+├── README.md                          # File này - tổng quan dự án
+├── QUICK_START.md                     # Hướng dẫn bắt đầu nhanh
+├── requirements.txt                   # Python dependencies
+├── .env.example                       # Template cho environment variables
+├── .gitignore                         # Git ignore patterns
+│
+├── docs/                              # 📚 Tất cả documentation
+│   ├── README.md                      # Tổng quan documentation
+│   ├── ARCHITECTURE.md                # Kiến trúc hệ thống
+│   ├── BAO_CAO_CHI_TIET.md           # Báo cáo chi tiết
+│   ├── TEST_STREAMING.md             # Hướng dẫn test
+│   └── archived/                     # Docs cũ (lưu trữ)
+│
+├── dags/                              # ✈️ Airflow DAGs
+│   ├── 01_Infrastructure_and_Training_Pipeline.py
+│   └── 02_Realtime_Streaming_Service.py
+│
+├── spark_code/                        # ⚡ Spark jobs
+│   ├── train_model.py                # Huấn luyện mô hình
+│   └── spark_streaming.py            # Streaming prediction
+│
+├── streaming/                         # 📤 Kafka producer
+│   └── kafka_producer.py             # Đọc từ HDFS, gửi vào Kafka
+│
+├── visualization/                     # 📊 Kafka consumer & visualization
+│   └── kafka_consumer.py             # Real-time visualization
+│
+├── web/                               # 🌐 Web UI
+│   ├── app.py                        # Flask application
+│   ├── predict_service.py            # Prediction service
+│   ├── dashboard.html                # Dashboard template
+│   └── requirements.txt              # Web UI dependencies
+│
+├── data/                              # 📊 Data preparation
+│   ├── prepare_data.py               # Chia dữ liệu train/streaming
+│   └── upload_to_hdfs.py             # Upload lên HDFS
+│
+├── mycelery/                          # 🔧 Celery workers
+│   ├── __init__.py
+│   ├── system_worker.py              # Worker tasks
+│   └── README.md
+│
+├── scripts/                           # 🔧 Shell scripts (organized)
+│   ├── README.md                     # Scripts documentation
+│   ├── setup/                        # Setup scripts
+│   ├── workers/                      # Worker management
+│   ├── checks/                       # Health checks
+│   ├── fixes/                        # Fix scripts
+│   └── utils/                        # Utilities
+│
+├── config/                            # ⚙️ Configuration files
+│   ├── airflow.cfg
+│   └── kafka_docker_compose_fixed.yml
+│
+├── utils/                             # 🛠️ Utility modules
+│
+└── models/                            # 💾 Local model backup (optional)
 ```
 
 ## 🎯 Cách chạy
