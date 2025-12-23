@@ -1,84 +1,113 @@
+"""
+Spark Streaming Job - Real-time House Price Prediction
+Đọc từ Kafka topic house_input, predict với model từ HDFS, ghi vào house_prediction
+"""
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col, to_json, struct
-from pyspark.sql.types import StructType, StructField, IntegerType, DoubleType
+from pyspark.sql.functions import from_json, col, struct, to_json
+from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 from pyspark.ml import PipelineModel
+import sys
 
-import os
-
-# --- CẤU HÌNH ---
-KAFKA_BROKER = os.getenv("KAFKA_BROKER", "192.168.80.51:29092")   # Nole2
+# Configuration
+KAFKA_BROKER = "192.168.80.51:9092"
 INPUT_TOPIC = "house_input"
 OUTPUT_TOPIC = "house_prediction"
-NAMENODE_IP = os.getenv("NAMENODE_IP", "192.168.80.178")         # Nole3
-MODEL_PATH = f"hdfs://{NAMENODE_IP}:9000/user/project/final/model/house_price_model"
+HDFS_NAMENODE = "hdfs://192.168.80.178:8020"
+MODEL_PATH = f"{HDFS_NAMENODE}/bigdata/house_prices/model"
 
-# --- CẬP NHẬT IP MỚI CỦA NOLE1 ---
-SPARK_MASTER_IP = os.getenv("SPARK_MASTER_IP", "192.168.80.165")    # Nole1
+def log(msg):
+    """Log with flush"""
+    print(msg, flush=True)
+    sys.stdout.flush()
 
 def main():
-    # Auto-detect driver IP (máy đang chạy script này)
-    import socket
-    driver_ip = socket.gethostbyname(socket.gethostname())
+    log("=" * 60)
+    log("SPARK STREAMING - REAL-TIME PREDICTION")
+    log("=" * 60)
+    log(f"Kafka Broker: {KAFKA_BROKER}")
+    log(f"Input Topic: {INPUT_TOPIC}")
+    log(f"Output Topic: {OUTPUT_TOPIC}")
+    log(f"Model Path: {MODEL_PATH}")
     
-    # Kết nối về Spark Master
+    # Create Spark session
+    log("\n[1/5] Creating Spark session...")
     spark = SparkSession.builder \
-        .appName("HousePriceStreaming") \
-        .master(f"spark://{SPARK_MASTER_IP}:7077") \
-        .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.0") \
-        .config("spark.driver.host", driver_ip) \
-        .config("spark.driver.bindAddress", "0.0.0.0") \
-        .config("spark.sql.shuffle.partitions", "2") \
+        .appName("HousePricePredictionStreaming") \
+        .config("spark.hadoop.fs.defaultFS", HDFS_NAMENODE) \
         .getOrCreate()
     
-    print(f">>> Driver IP: {driver_ip}, Spark Master: {SPARK_MASTER_IP}")
-    
     spark.sparkContext.setLogLevel("WARN")
-
-    # (Các phần dưới giữ nguyên không đổi)
-    print(f">>> Đang tải Model từ HDFS: {MODEL_PATH}")
+    log("✓ Spark session created")
+    
+    # Load model from HDFS
+    log(f"\n[2/5] Loading model from HDFS: {MODEL_PATH}")
     try:
         model = PipelineModel.load(MODEL_PATH)
-        print(">>> Tải Model thành công!")
+        log("✓ Model loaded successfully")
     except Exception as e:
-        print(f"LỖI TẢI MODEL: {e}")
-        return
-
-    print(f">>> Đang kết nối Kafka Input ({INPUT_TOPIC})...")
-    df_raw = spark.readStream \
+        log(f"❌ Failed to load model: {e}")
+        spark.stop()
+        sys.exit(1)
+    
+    # Define schema for input data (adjust based on your CSV columns)
+    log("\n[3/5] Defining input schema...")
+    # Schema should match your training data columns (excluding price)
+    input_schema = StructType([
+        StructField("f_4012", DoubleType(), True),
+        StructField("f_3", DoubleType(), True),
+        StructField("f_12", DoubleType(), True),
+        StructField("f_2016", DoubleType(), True),
+        StructField("f_2_09809241489216", DoubleType(), True),
+        StructField("f_15", DoubleType(), True),
+        StructField("f_5", DoubleType(), True),
+    ])
+    
+    # Read from Kafka
+    log(f"\n[4/5] Reading from Kafka topic: {INPUT_TOPIC}")
+    df_stream = spark \
+        .readStream \
         .format("kafka") \
         .option("kafka.bootstrap.servers", KAFKA_BROKER) \
         .option("subscribe", INPUT_TOPIC) \
         .option("startingOffsets", "latest") \
         .load()
-
-    schema = StructType([
-        StructField("Square_Footage", IntegerType()),
-        StructField("Num_Bedrooms", IntegerType()),
-        StructField("Num_Bathrooms", IntegerType()),
-        StructField("Year_Built", IntegerType()),
-        StructField("Lot_Size", DoubleType()),
-        StructField("Garage_Size", IntegerType()),
-        StructField("Neighborhood_Quality", IntegerType()),
-        StructField("House_Price", DoubleType())  # Thêm cột giá thực tế để so sánh
-    ])
-
-    df_parsed = df_raw.select(from_json(col("value").cast("string"), schema).alias("data")).select("data.*")
-
-    predictions = model.transform(df_parsed)
-
-    kafka_output = predictions.select(to_json(struct("*")).alias("value"))
-
-    print(f">>> Đang chuyển tiếp kết quả sang Topic: {OUTPUT_TOPIC}")
     
-    query = kafka_output.writeStream \
-        .outputMode("append") \
+    log("✓ Connected to Kafka stream")
+    
+    # Parse JSON from Kafka
+    df_parsed = df_stream.select(
+        from_json(col("value").cast("string"), input_schema).alias("data")
+    ).select("data.*")
+    
+    # Make predictions
+    log("\n[5/5] Starting prediction stream...")
+    df_predictions = model.transform(df_parsed)
+    
+    # Prepare output (features + prediction)
+    df_output = df_predictions.select(
+        to_json(struct("*")).alias("value")
+    )
+    
+    # Write to Kafka output topic
+    query = df_output \
+        .writeStream \
         .format("kafka") \
         .option("kafka.bootstrap.servers", KAFKA_BROKER) \
         .option("topic", OUTPUT_TOPIC) \
-        .option("checkpointLocation", "/tmp/spark_checkpoint_cluster_final_v2") \
+        .option("checkpointLocation", "/tmp/spark_streaming_checkpoint") \
+        .outputMode("append") \
         .start()
-
-    print(f">>> MASTER ĐANG CHẠY TẠI: {SPARK_MASTER_IP}")
+    
+    log("✓ Streaming started!")
+    log(f"\n{'='*60}")
+    log("STREAMING JOB IS RUNNING")
+    log(f"{'='*60}")
+    log(f"Reading from: {INPUT_TOPIC}")
+    log(f"Writing to: {OUTPUT_TOPIC}")
+    log("Press Ctrl+C to stop")
+    log(f"{'='*60}\n")
+    
+    # Wait for termination
     query.awaitTermination()
 
 if __name__ == "__main__":

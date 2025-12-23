@@ -372,22 +372,21 @@ with DAG(
         
         print(f"📦 Using model from: {model_path}")
         
-        # Updated spark-submit with better configuration
+        # Updated spark-submit with correct Scala version for Spark 4.0.1
         spark_submit_cmd = f"""
-        nohup ~/spark/bin/spark-submit \
-          --master {SPARK_MASTER} \
-          --deploy-mode client \
-          --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 \
-          --conf spark.hadoop.fs.defaultFS={HDFS_NAMENODE} \
-          --conf spark.driver.memory=2g \
-          --conf spark.executor.memory=2g \
-          --conf spark.executor.cores=2 \
-          --conf spark.cores.max=4 \
-          --conf spark.streaming.kafka.maxRatePerPartition=100 \
-          --conf spark.sql.streaming.checkpointLocation=/tmp/spark_checkpoint \
-          ~/Tuan/Project/BigData/final_project/spark_code/spark_streaming.py \
-          --model-path {model_path} \
-          --kafka-broker {KAFKA_BROKER} \
+        nohup ~/spark/bin/spark-submit \\
+          --master {SPARK_MASTER} \\
+          --deploy-mode client \\
+          --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.0 \\
+          --conf spark.hadoop.fs.defaultFS={HDFS_NAMENODE} \\
+          --conf spark.driver.memory=2g \\
+          --conf spark.executor.memory=2g \\
+          --conf spark.executor.cores=2 \\
+          --conf spark.cores.max=4 \\
+          --conf spark.streaming.kafka.maxRatePerPartition=100 \\
+          ~/Tuan/Project/BigData/final_project/spark_code/spark_streaming.py \\
+          --model-path {model_path} \\
+          --kafka-broker {KAFKA_BROKER} \\
           > /tmp/spark_streaming.log 2>&1 &
         """
         

@@ -33,9 +33,10 @@ app.conf.update(
 )
 
 QUEUE_MAPPING = {
-    'spark': 'spark',
-    'kafka': 'node_57',
-    'hadoop': 'node_57',
+    'spark-master': 'nole1',
+    'spark-worker': 'nole2',
+    'kafka': 'nole2',
+    'hadoop': 'nole3'
 }
 
 
